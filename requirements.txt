@@ -1,0 +1,7 @@
+anthropic
+cryptography
+google-generativeai
+numpy
+openai
+python-dotenv
+flask

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ro">
+
+    <head>
+        <meta charset="UTF-8" />
+        <title>Infocoach Demo</title>
+        <style>
+            #feedback-form button {
+                margin-right: 10px;
+                cursor: pointer;
+            }
+
+            #feedback-message {
+                margin-top: 10px;
+                color: green;
+                font-weight: bold;
+                display: none;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h2>InfoCoach Demo</h2>
+        <form method="post">
+            <label for="clasa">Alege clasa:</label>
+            <select name="clasa" id="clasa">
+                <option value="9" {% if clasa=='9' %}selected{% endif %}>Clasa a 9-a</option>
+                <option value="10" {% if clasa=='10' %}selected{% endif %}>Clasa a 10-a</option>
+                <option value="11-12" {% if clasa=='11-12' %}selected{% endif %}>Clasa a 11-a / a 12-a</option>
+            </select><br><br>
+
+            <textarea name="user_input" rows="4" cols="60"
+                placeholder="Scrie întrebarea aici...">{{ user_input }}</textarea><br><br>
+
+            <!-- Textarea pentru cod -->
+            <label for="code_input">Cod sursă (opțional):</label><br>
+            <textarea name="code_input" rows="8" cols="60"
+                placeholder="Adaugă codul aici...">{{ code_input }}</textarea><br><br>
+
+            <input type="submit" value="Trimite">
+        </form>
+
+        <h3>Răspuns:</h3>
+        <div style="white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; min-height: 50px; width: 60ch;">
+            {{ output }}
+        </div>
+
+        {% if output %}
+        <form action="/feedback" method="post">
+            <input type="hidden" name="user_input" value="{{ user_input }}">
+            <input type="hidden" name="ai_response" value="{{ output }}">
+            <input type="hidden" name="clasa" value="{{ clasa }}">
+            <p>Acest răspuns a fost util?</p>
+            <button type="submit" name="feedback" value="bun">✅ Da</button>
+            <button type="submit" name="feedback" value="rau">❌ Nu</button>
+        </form>
+
+
+        <div id="feedback-message">Mulțumim pentru feedback! 😊</div>
+        {% endif %}
+
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const feedbackForm = document.querySelector('form[action="/feedback"]');
+                if (feedbackForm) {
+                    feedbackForm.addEventListener('submit', e => {
+                        e.preventDefault();
+                        const formData = new FormData(feedbackForm);
+                        fetch('/feedback', {
+                            method: 'POST',
+                            body: formData
+                        })
+                            .then(response => {
+                                if (response.ok) {
+                                    // Ascundem formularul
+                                    feedbackForm.style.display = 'none';
+                                    // Afișăm mesajul de mulțumire
+                                    const thankYou = document.createElement('p');
+                                    thankYou.textContent = 'Mulțumim pentru feedback! 🙏';
+                                    feedbackForm.parentNode.appendChild(thankYou);
+                                } else {
+                                    alert('A apărut o eroare la trimiterea feedback-ului.');
+                                }
+                            })
+                            .catch(() => {
+                                alert('Nu s-a putut trimite feedback-ul. Verifică conexiunea.');
+                            });
+                    });
+                }
+            });
+        </script>
+
+    </body>
+
+</html>
