@@ -1,3 +1,4 @@
+#
 import os
 import sqlite3
 
@@ -5,7 +6,7 @@ db_path = os.path.join(os.path.dirname(__file__), 'feedback.db')
 conn = sqlite3.connect(db_path)
 c = conn.cursor()
 
-print("Scrie o comandă SQL (sau '.schema' sau 'exit' pentru a ieși):")
+print("Scrie o comandă SQL (sau 'exit' pentru a ieși):")
 while True:
     cmd = input("sqlite> ")
     if cmd.lower() in ("exit", "quit"):
