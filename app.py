@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from datetime import datetime
 import time
+import re
 
 # Încarcă cheia API
 load_dotenv()
@@ -57,6 +58,7 @@ Instrucțiuni pentru AI:
     - Eviți includerea mai multor biblioteci — păstrezi codul cât mai simplu.
 26. Dacă întrebarea este teoretică și generală, folosești exemple intuitive și termeni accesibili.
 27. Ține cont de nivelul elevului dacă este menționat (clasa a 9-a — începător, clasa a 12-a — avansat).
+28. Nu afișa referințe de tipul [x:y†nume_fisier.txt] sau orice altă referință tehnică la fișierele sursă în răspunsuri. Răspunsul trebuie să fie natural, fără astfel de note de subsol.
 
 # Format răspuns
 **Exemplu:**
@@ -117,7 +119,12 @@ def index():
         code_input = request.form.get('code_input', '')
         clasa = request.form.get('clasa', '9')
 
-        prompt_content = f"{user_input}\n\nDacă ai un cod, iată-l:\n```cpp\n{code_input}\n```"
+        prompt_content = (
+            f"{user_input}\n\n"
+            "Dacă ai un cod, iată-l:\n"
+            f"```cpp\n{code_input}\n```\n"
+            "Te rog să folosești cât mai mult informațiile din resursele disponibile."
+        )
 
         assistant = assistants[clasa]
 
@@ -138,6 +145,9 @@ def index():
                     break
         else:
             output = "A apărut o eroare la generarea răspunsului. Verifică conexiunea sau încearcă din nou."
+
+        # Curăță referințele de tip [x:y†nume_fisier.txt] din răspuns
+        output = re.sub(r'\[\d+:\d+†[^\]]+\]', '', output)
 
     return render_template('index.html', user_input=user_input, code_input=code_input, output=output, clasa=clasa)
 
