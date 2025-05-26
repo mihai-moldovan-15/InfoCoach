@@ -6,6 +6,7 @@ from openai import OpenAI
 from datetime import datetime
 import time
 import re
+import html
 
 # Încarcă cheia API
 load_dotenv()
@@ -106,6 +107,13 @@ def init_db():
     conn.commit()
     conn.close()
 
+# === Funcție pentru formatarea blocurilor de cod C++ ===
+def format_code_blocks(text):
+    def replacer(match):
+        code = html.escape(match.group(1))
+        return f'<pre><code class="cpp">{code}</code></pre>'
+    return re.sub(r'```cpp\s*([\s\S]*?)```', replacer, text)
+
 # === Ruta principală ===
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -147,7 +155,8 @@ def index():
             output = "A apărut o eroare la generarea răspunsului. Verifică conexiunea sau încearcă din nou."
 
         # Curăță referințele de tip [x:y†nume_fisier.txt] din răspuns
-        output = re.sub(r'\[\d+:\d+†[^\]]+\]', '', output)
+        output = re.sub(r'[【\[]\d+:\d+†[^\]】]+[】\]]', '', output)
+        output = format_code_blocks(output)
 
     return render_template('index.html', user_input=user_input, code_input=code_input, output=output, clasa=clasa)
 
