@@ -66,7 +66,7 @@ Instrucțiuni pentru AI:
 
 Q: Sunt un elev în clasa a 9-a și nu înțeleg ce este un vector.
 
-A: Un vector (numit și matrice unidimensională) este o colecție de valori de același tip (de exemplu, doar numere întregi), stocate unul după altul în memorie. Gândiți-vă la un vector ca la un raft cu sertare, fiecare având un număr (index) și conținând o valoare. În loc să declari 100 de variabile una câte una: `int var1, var2, var3, ...`, poți scrie: `int var[100];` Acum ai 100 de 'sertare' numerotate de la 0 la 99. `var[0]` este primul element, `var[1]` al doilea, ... `var[99]` este al 100-lea element.
+A: Un vector (numit și tablou unidimensional) este o colecție de valori de același tip (de exemplu, doar numere întregi), stocate unul după altul în memorie. Gândiți-vă la un vector ca la un raft cu sertare, fiecare având un număr (index) și conținând o valoare. În loc să declari 100 de variabile una câte una: `int var1, var2, var3, ...`, poți scrie: `int var[100];` Acum ai 100 de 'sertare' numerotate de la 0 la 99. `var[0]` este primul element, `var[1]` al doilea, ... `var[99]` este al 100-lea element.
 
 Unii programatori aleg să lucreze de la 1 în loc de 0. În acest caz, poți declara: `int var[101];` — astfel `var[1]` până la `var[100]` sunt valorile utile, iar `var[0]` poate fi ignorat.
 
@@ -114,23 +114,54 @@ def format_code_blocks(text):
         return f'<pre><code class="cpp">{code}</code></pre>'
     return re.sub(r'```cpp\s*([\s\S]*?)```', replacer, text)
 
+# === Funcție pentru formatarea pașilor, alineatelor, variabilelor și bold ===
+def format_steps_and_paragraphs(text):
+    # Separă blocurile de cod deja formatate
+    parts = re.split(r'(<pre><code class="cpp">[\s\S]*?<\/code><\/pre>)', text)
+    formatted = []
+    for part in parts:
+        if part.startswith('<pre><code class="cpp">'):
+            # Nu modifica blocurile de cod!
+            formatted.append(part)
+        else:
+            # Aplicați regex DOAR pe textul non-cod!
+            lines = part.split('\n')
+            in_list = False
+            list_items = []
+            new_lines = []
+            for line in lines:
+                # Eliminat: Evidențiază variabilele marcate cu 'n' sau 'variabila'
+                # Evidențiază textul bold marcat cu **text**
+                line = re.sub(r"\*\*([^\*]+)\*\*", r"<strong>\1</strong>", line)
+                m = re.match(r'^\s*(\d+)\.\s+(.*)', line)
+                if m:
+                    in_list = True
+                    list_items.append(f"<li>{m.group(2).strip()}</li>")
+                else:
+                    if in_list:
+                        new_lines.append("<ol>" + "".join(list_items) + "</ol>")
+                        list_items = []
+                        in_list = False
+                    if line.strip():
+                        new_lines.append(f"<p>{line.strip()}</p>")
+            if in_list:
+                new_lines.append("<ol>" + "".join(list_items) + "</ol>")
+            formatted.append('\n'.join(new_lines))
+    return ''.join(formatted)
+
 # === Ruta principală ===
 @app.route('/', methods=['GET', 'POST'])
 def index():
     user_input = ''
-    code_input = ''
     output = ''
     clasa = '9'
 
     if request.method == 'POST':
         user_input = request.form.get('user_input', '')
-        code_input = request.form.get('code_input', '')
         clasa = request.form.get('clasa', '9')
 
         prompt_content = (
-            f"{user_input}\n\n"
-            "Dacă ai un cod, iată-l:\n"
-            f"```cpp\n{code_input}\n```\n"
+            f"{user_input}\n"
             "Te rog să folosești cât mai mult informațiile din resursele disponibile."
         )
 
@@ -154,11 +185,11 @@ def index():
         else:
             output = "A apărut o eroare la generarea răspunsului. Verifică conexiunea sau încearcă din nou."
 
-        # Curăță referințele de tip [x:y†nume_fisier.txt] din răspuns
         output = re.sub(r'[【\[]\d+:\d+†[^\]】]+[】\]]', '', output)
         output = format_code_blocks(output)
+        output = format_steps_and_paragraphs(output)
 
-    return render_template('index.html', user_input=user_input, code_input=code_input, output=output, clasa=clasa)
+    return render_template('index.html', user_input=user_input, output=output, clasa=clasa)
 
 # === Ruta pentru salvare feedback ===
 @app.route('/feedback', methods=['POST'])
