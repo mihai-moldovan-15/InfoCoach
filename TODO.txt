@@ -2,3 +2,6 @@ Raspunsuri mai bune:
  - scrierea corecta a codului;
  - formatarea mai buna;
  - explicatii clare, inspirate din documentatie.
+
+ Redistribuie codul in fisere mai mici
+ 

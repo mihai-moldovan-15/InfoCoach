@@ -4,134 +4,13 @@
 <head>
     <meta charset="UTF-8" />
     <title>InfoCoach Chat</title>
-    <style>
-        body {
-            background: #f6f8fa;
-            margin: 0;
-            font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
-            height: 100vh;
-            min-height: 100vh;
-        }
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            max-width: 900px;
-            margin: 0 auto;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 2px 16px rgba(0,0,0,0.08);
-            overflow: hidden;
-        }
-        .chat-header {
-            padding: 24px 24px 12px 24px;
-            text-align: center;
-            background: #fff;
-            border-bottom: 1px solid #eee;
-        }
-        .chat-messages {
-            flex: 1 1 auto;
-            overflow-y: auto;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-            background: #f6f8fa;
-        }
-        .message {
-            max-width: 80%;
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 0;
-            font-size: 16px;
-            line-height: 1.6;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.03);
-        }
-        .message.user {
-            align-self: flex-end;
-            background: #e6f0fa;
-            color: #222;
-        }
-        .message.assistant {
-            align-self: flex-start;
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            color: #222;
-        }
-        .chat-input-area {
-            padding: 18px 24px 18px 24px;
-            background: #fff;
-            border-top: 1px solid #eee;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .chat-input-row {
-            display: flex;
-            gap: 8px;
-        }
-        textarea {
-            flex: 1 1 auto;
-            font-size: 16px;
-            font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
-            padding: 8px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            resize: vertical;
-            min-height: 48px;
-            max-height: 120px;
-        }
-        select, input[type="submit"], button {
-            font-size: 16px;
-            padding: 6px 12px;
-            border-radius: 6px;
-            border: 1px solid #bbb;
-            background: #0074d9;
-            color: #fff;
-            transition: background 0.2s;
-            cursor: pointer;
-        }
-        input[type="submit"]:hover, button:hover {
-            background: #005fa3;
-        }
-        pre code.cpp {
-            background: #f8f8f8;
-            border: 1px solid #ccc;
-            display: block;
-            padding: 10px;
-            margin: 10px 0;
-            font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
-            font-size: 15px;
-            color: #222;
-            overflow-x: auto;
-        }
-        code {
-            background: #f3f3f3;
-            color: #c7254e;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 95%;
-            font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
-        }
-        strong {
-            font-weight: bold;
-            color: #1a1a1a;
-        }
-        .feedback-form {
-            margin-top: 10px;
-        }
-        #wait-message {
-            margin: 10px 0;
-            font-weight: bold;
-            color: #0074d9;
-            display: none;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- highlight.js pentru colorare sintaxă C++ -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js"></script>
     <script>hljs.highlightAll();</script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </head>
 
 <body>
@@ -164,79 +43,18 @@
         </div>
         <div class="chat-input-area">
             <div id="wait-message"></div>
-            <form method="post" onsubmit="startWaitMessages()" autocomplete="off">
+            <form id="chat-form" onsubmit="return submitForm(event)" autocomplete="off">
                 <div class="chat-input-row">
                     <select name="clasa" id="clasa">
                         <option value="9" {% if clasa=='9' %}selected{% endif %}>Clasa a 9-a</option>
                         <option value="10" {% if clasa=='10' %}selected{% endif %}>Clasa a 10-a</option>
                         <option value="11-12" {% if clasa=='11-12' %}selected{% endif %}>Clasa a 11-a / a 12-a</option>
                     </select>
-                    <textarea name="user_input" rows="2" placeholder="Scrie întrebarea aici...">{{ user_input }}</textarea>
+                    <textarea name="user_input" id="user-input" rows="2" placeholder="Scrie întrebarea aici..."></textarea>
                     <input type="submit" value="Trimite">
                 </div>
             </form>
         </div>
     </div>
-    <script>
-        // Scroll automat la ultimul mesaj
-        window.onload = function () {
-            var chat = document.getElementById("chat-messages");
-            if (chat) chat.scrollTop = chat.scrollHeight;
-            {% if output %}
-            document.getElementById("wait-message").style.display = "none";
-            if (window.intervalId) clearInterval(window.intervalId);
-            window.msgIndex = 0;
-            {% endif %}
-        };
-
-        // Mesaje de așteptare
-        const messages = [
-            "Se procesează întrebarea ta...",
-            "Încă lucrez la răspuns...",
-            "Verific resursele pentru cel mai bun răspuns...",
-            "Aproape am terminat, mai ai puțină răbdare!"
-        ];
-        let msgIndex = 0;
-        let intervalId = null;
-
-        function startWaitMessages() {
-            const waitDiv = document.getElementById("wait-message");
-            waitDiv.style.display = "block";
-            waitDiv.textContent = messages[msgIndex];
-            intervalId = setInterval(() => {
-                msgIndex = (msgIndex + 1) % messages.length;
-                waitDiv.textContent = messages[msgIndex];
-            }, 2000);
-            window.intervalId = intervalId;
-            window.msgIndex = msgIndex;
-        }
-
-        // Feedback AJAX
-        document.addEventListener('DOMContentLoaded', () => {
-            const feedbackForm = document.querySelector('.feedback-form');
-            const feedbackMsg = document.getElementById('feedback-message');
-            if (feedbackForm) {
-                feedbackForm.addEventListener('submit', e => {
-                    e.preventDefault();
-                    const formData = new FormData(feedbackForm);
-                    fetch('/feedback', {
-                        method: 'POST',
-                        body: formData
-                    })
-                        .then(response => {
-                            if (response.ok) {
-                                feedbackForm.style.display = 'none';
-                                if (feedbackMsg) feedbackMsg.style.display = 'block';
-                            } else {
-                                alert('A apărut o eroare la trimiterea feedback-ului.');
-                            }
-                        })
-                        .catch(() => {
-                            alert('Nu s-a putut trimite feedback-ul. Verifică conexiunea.');
-                        });
-                });
-            }
-        });
-    </script>
 </body>
 </html>
