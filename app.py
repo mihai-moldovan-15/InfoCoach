@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, flash, redirect, url_for
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 import os
 import sqlite3
 from dotenv import load_dotenv
@@ -7,12 +8,35 @@ from datetime import datetime
 import time
 import re
 import html
+from models import db, User
+from forms import LoginForm, RegistrationForm
 
 # Încarcă cheia API
 load_dotenv()
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')  # Add this to your .env file
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = ''  # Remove the default message
+login_manager.login_message_category = 'info'  # Set the category for any custom messages
+
+# Initialize SQLAlchemy
+db.init_app(app)
+
+# Create database tables
+with app.app_context():
+    db.create_all()
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 # === Vector store-urile deja create (înlocuiește cu ID-urile reale obținute la upload) ===
 vector_stores = {
@@ -98,8 +122,52 @@ def format_steps_and_paragraphs(text):
             formatted.append('\n'.join(new_lines))
     return ''.join(formatted)
 
+# === Ruta pentru login ===
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user and user.check_password(form.password.data):
+            login_user(user)
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            flash('Autentificare reușită!', 'success')
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('index'))
+        flash('Nume de utilizator sau parolă incorectă', 'danger')
+    return render_template('login.html', form=form)
+
+# === Ruta pentru register ===
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        user = User(username=form.username.data, email=form.email.data)
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash('Înregistrare reușită! Te rugăm să te autentifici.', 'success')
+        return redirect(url_for('login'))
+    return render_template('register.html', form=form)
+
+# === Ruta pentru logout ===
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Ai fost deconectat cu succes.', 'info')
+    return redirect(url_for('index'))
+
 # === Ruta principală ===
 @app.route('/', methods=['GET', 'POST'])
+@login_required
 def index():
     user_input = ''
     output = ''
@@ -142,6 +210,7 @@ def index():
 
 # === Ruta pentru salvare feedback ===
 @app.route('/feedback', methods=['POST'])
+@login_required
 def feedback():
     user_input = request.form.get('user_input', '')
     ai_response = request.form.get('ai_response', '')
@@ -159,5 +228,7 @@ def feedback():
 
 # === Pornire aplicație ===
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()  # Create database tables
     init_db()
     app.run(debug=True)

@@ -34,9 +34,10 @@ function addMessage(content, isUser = false) {
     if (isUser) {
         messageDiv.innerHTML = `<b>Tu:</b><br>${content}`;
     } else {
+        // Create the message structure with clean content
         messageDiv.innerHTML = `
-            <b>InfoCoach:</b><br>
-            ${content}
+            <b>InfoCoach:</b>
+            <div class="message-content">${content}</div>
             <form class="feedback-form" action="/feedback" method="post">
                 <input type="hidden" name="user_input" value="${document.getElementById('user-input').value}">
                 <input type="hidden" name="ai_response" value="${content}">
@@ -83,13 +84,9 @@ function submitForm(event) {
         // Find the assistant's response
         const assistantMessage = doc.querySelector('.message.assistant');
         if (assistantMessage) {
-            // Remove the user and assistant messages from the parsed HTML
-            const userMessage = assistantMessage.previousElementSibling;
-            if (userMessage) userMessage.remove();
-            assistantMessage.remove();
-            
-            // Add the assistant's response to our chat
-            addMessage(assistantMessage.innerHTML);
+            // Get only the message content without the InfoCoach header and feedback form
+            const messageContent = assistantMessage.querySelector('.message-content').innerHTML;
+            addMessage(messageContent);
         }
         
         // Hide waiting message
