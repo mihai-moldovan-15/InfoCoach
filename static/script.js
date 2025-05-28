@@ -26,6 +26,7 @@ function startWaitMessages() {
     window.msgIndex = msgIndex;
 }
 
+// Function to add a message to the chat interface
 function addMessage(content, isUser = false) {
     const chatMessages = document.getElementById("chat-messages");
     const messageDiv = document.createElement("div");
@@ -34,23 +35,18 @@ function addMessage(content, isUser = false) {
     if (isUser) {
         messageDiv.innerHTML = `<b>Tu:</b><br>${content}`;
     } else {
-        // Create the message structure with clean content
+        // Create the full assistant message structure without feedback
         messageDiv.innerHTML = `
             <b>InfoCoach:</b>
             <div class="message-content">${content}</div>
-            <form class="feedback-form" action="/feedback" method="post">
-                <input type="hidden" name="user_input" value="${document.getElementById('user-input').value}">
-                <input type="hidden" name="ai_response" value="${content}">
-                <input type="hidden" name="clasa" value="${document.getElementById('clasa').value}">
-                <span>Acest răspuns a fost util?</span>
-                <button type="submit" name="feedback" value="bun">✅ Da</button>
-                <button type="submit" name="feedback" value="rau">❌ Nu</button>
-            </form>
-            <div id="feedback-message" style="display:none;">Mulțumim pentru feedback! 😊</div>
         `;
     }
-    
+
     chatMessages.appendChild(messageDiv);
+    // Highlight code blocks within the newly added message
+    messageDiv.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightBlock(block);
+    });
     scrollToBottom();
 }
 
@@ -60,11 +56,11 @@ function submitForm(event) {
     const form = document.getElementById('chat-form');
     const formData = new FormData(form);
     
-    // Add user message to chat
+    // Add user message to chat immediately
     const userInput = document.getElementById('user-input').value;
     addMessage(userInput, true);
     
-    // Clear input
+    // Clear input field
     document.getElementById('user-input').value = '';
     
     // Show waiting message
@@ -77,23 +73,31 @@ function submitForm(event) {
     })
     .then(response => response.text())
     .then(html => {
-        // Create a temporary div to parse the HTML
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        
-        // Find the assistant's response
-        const assistantMessage = doc.querySelector('.message.assistant');
-        if (assistantMessage) {
-            // Get only the message content without the InfoCoach header and feedback form
-            const messageContent = assistantMessage.querySelector('.message-content').innerHTML;
-            addMessage(messageContent);
-        }
-        
-        // Hide waiting message
+        // Hide waiting message regardless of success/failure
         document.getElementById('wait-message').style.display = 'none';
         if (window.intervalId) {
             clearInterval(window.intervalId);
             window.intervalId = null;
+        }
+
+        // Create a temporary div to parse the HTML response
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Find the assistant's message content div in the parsed HTML response
+        // This should contain the formatted response including code blocks
+        const assistantMessageContentDiv = doc.querySelector('.message.assistant .message-content');
+        
+        if (assistantMessageContentDiv) {
+            // Get ONLY the innerHTML of the message content div from the response
+            const assistantMessageContentHTML = assistantMessageContentDiv.innerHTML;
+            
+            // Add the assistant message to the chat using the extracted content
+            addMessage(assistantMessageContentHTML, false);
+        } else {
+             console.error("Could not find assistant message content in response.");
+             // Optionally add a generic error message to the chat
+             addMessage("A apărut o problemă la preluarea răspunsului.", false);
         }
     })
     .catch(error => {
@@ -109,32 +113,13 @@ function submitForm(event) {
     return false;
 }
 
-// Feedback AJAX
+// Feedback AJAX - Removed
 document.addEventListener('DOMContentLoaded', () => {
-    // Add event delegation for feedback forms
-    document.addEventListener('submit', (e) => {
-        if (e.target.classList.contains('feedback-form')) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            fetch('/feedback', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (response.ok) {
-                    e.target.style.display = 'none';
-                    const feedbackMsg = e.target.nextElementSibling;
-                    if (feedbackMsg) feedbackMsg.style.display = 'block';
-                } else {
-                    alert('A apărut o eroare la trimiterea feedback-ului.');
-                }
-            })
-            .catch(() => {
-                alert('Nu s-a putut trimite feedback-ul. Verifică conexiunea.');
-            });
-        }
-    });
-    
-    // Initial scroll to bottom
+     // Initial scroll to bottom
     scrollToBottom();
+    // Initial highlight in case there's content on page load (e.g., previous messages)
+    // This is less crucial now as highlighting is done per message addition
+    // hljs.highlightAll();
+
+    // Removed feedback form submission logic
 }); 

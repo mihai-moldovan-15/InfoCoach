@@ -19,21 +19,6 @@
             {{ user_input }}
         </div>
         {% endif %}
-        {% if output %}
-        <div class="message assistant">
-            <b>InfoCoach:</b>
-            <div class="message-content">{{ output|safe }}</div>
-            <form class="feedback-form" action="/feedback" method="post">
-                <input type="hidden" name="user_input" value="{{ user_input }}">
-                <input type="hidden" name="ai_response" value="{{ output }}">
-                <input type="hidden" name="clasa" value="{{ clasa }}">
-                <span>Acest răspuns a fost util?</span>
-                <button type="submit" name="feedback" value="bun">✅ Da</button>
-                <button type="submit" name="feedback" value="rau">❌ Nu</button>
-            </form>
-            <div id="feedback-message" style="display:none;">Mulțumim pentru feedback! 😊</div>
-        </div>
-        {% endif %}
     </div>
     <div class="chat-input-area">
         <div id="wait-message"></div>
@@ -55,6 +40,5 @@
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js"></script>
-<script>hljs.highlightAll();</script>
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 {% endblock %}

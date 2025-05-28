@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, flash, redirect, url_for
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 import os
-import sqlite3
+# import sqlite3 # Removed as feedback database is removed
 from dotenv import load_dotenv
 from openai import OpenAI
 from datetime import datetime
@@ -16,21 +16,21 @@ load_dotenv()
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')  # Add this to your .env file
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db' # Only keep the users database URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-login_manager.login_message = ''  # Remove the default message
-login_manager.login_message_category = 'info'  # Set the category for any custom messages
+login_manager.login_message = ''
+login_manager.login_message_category = 'info'
 
 # Initialize SQLAlchemy
 db.init_app(app)
 
-# Create database tables
+# Create database tables (only for users now)
 with app.app_context():
     db.create_all()
 
@@ -62,23 +62,23 @@ for clasa in vector_stores:
         top_p=0.8
     )
 
-# === Inițializare baza de date SQLite ===
-def init_db():
-    os.makedirs('feedback', exist_ok=True)
-    conn = sqlite3.connect('feedback/feedback.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS feedback (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            clasa TEXT,
-            user_input TEXT,
-            ai_response TEXT,
-            feedback TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# === Inițializare baza de date SQLite (Feedback) - Removed ===
+# def init_db():
+#     os.makedirs('feedback', exist_ok=True)
+#     conn = sqlite3.connect('feedback/feedback.db')
+#     c = conn.cursor()
+#     c.execute('''
+#         CREATE TABLE IF NOT EXISTS feedback (
+#             id INTEGER PRIMARY KEY AUTOINCREMENT,
+#             timestamp TEXT,
+#             clasa TEXT,
+#             user_input TEXT,
+#             ai_response TEXT,
+#             feedback TEXT
+#         )
+#     ''')
+#     conn.commit()
+#     conn.close()
 
 # === Funcție pentru formatarea blocurilor de cod C++ ===
 def format_code_blocks(text):
@@ -103,23 +103,45 @@ def format_steps_and_paragraphs(text):
             list_items = []
             new_lines = []
             for line in lines:
-                # Eliminat: Evidențiază variabilele marcate cu 'n' sau 'variabila'
+                # Tratează header-ele H3 (Explicații:) specific
+                if line.strip().startswith('###'):
+                    new_lines.append(line) # Lăsăm header-ul așa cum e
+                    continue # Treci la linia următoare după header
+
                 # Evidențiază textul bold marcat cu **text**
                 line = re.sub(r"\*\*([^\*]+)\*\*", r"<strong>\1</strong>", line)
+
+                # Găsește și formatează itemii listelor ordonate (dacă există)
                 m = re.match(r'^\s*(\d+)\.\s+(.*)', line)
                 if m:
-                    in_list = True
+                    # Dacă nu eram într-o listă, începe o listă nouă
+                    if not in_list:
+                         in_list = True
+                         if new_lines and not new_lines[-1].startswith('<p>') and not new_lines[-1].startswith('<ol>'):
+                             pass
+
+                    # Adaugă itemul curent la lista
                     list_items.append(f"<li>{m.group(2).strip()}</li>")
                 else:
+                    # Dacă eram într-o listă și linia curentă nu e un item de listă,
+                    # încheie lista și adaugă la new_lines
                     if in_list:
                         new_lines.append("<ol>" + "".join(list_items) + "</ol>")
                         list_items = []
                         in_list = False
+                    
+                    # Adaugă linia non-listă ca un paragraf, dacă nu e goală
                     if line.strip():
                         new_lines.append(f"<p>{line.strip()}</p>")
+
+            # După buclă, dacă s-a terminat cu o listă, adaug-o
             if in_list:
                 new_lines.append("<ol>" + "".join(list_items) + "</ol>")
+
+            # Alătură liniile procesate pentru această parte
             formatted.append('\n'.join(new_lines))
+    
+    # Alătură toate părțile (cod și non-cod) înapoi
     return ''.join(formatted)
 
 # === Ruta pentru login ===
@@ -198,37 +220,47 @@ def index():
             for m in reversed(messages.data):
                 if m.role == "assistant":
                     output = m.content[0].text.value
-                    break
-        else:
-            output = "A apărut o eroare la generarea răspunsului. Verifică conexiunea sau încearcă din nou."
+                    
+                    # === Filter out references like 【4:0†source】 ===
+                    output = re.sub(r'[【\[]\d+:\d+†[^\]】]+[】\]]', '', output)
+                    
+                    # Format the output for HTML display
+                    formatted_output = format_code_blocks(output)
+                    formatted_output = format_steps_and_paragraphs(formatted_output)
 
-        output = re.sub(r'[【\[]\d+:\d+†[^\]】]+[】\]]', '', output)
-        output = format_code_blocks(output)
-        output = format_steps_and_paragraphs(output)
+                    # Render the assistant message fragment and return it
+                    return render_template('assistant_message.html', 
+                                           output=formatted_output,
+                                           user_input=user_input, 
+                                           clasa=clasa)
 
+        # If the run failed or no assistant message was found
+        return "A apărut o problemă la generarea răspunsului asistentului.", 500
+
+    # For GET requests, render the full index page with initial (or last) data
     return render_template('index.html', user_input=user_input, output=output, clasa=clasa)
 
-# === Ruta pentru salvare feedback ===
-@app.route('/feedback', methods=['POST'])
-@login_required
-def feedback():
-    user_input = request.form.get('user_input', '')
-    ai_response = request.form.get('ai_response', '')
-    clasa = request.form.get('clasa', '')
-    fb = request.form.get('feedback', '')
+# === Ruta pentru salvare feedback === # Removed
+# @app.route('/feedback', methods=['POST'])
+# @login_required
+# def feedback():
+#     user_input = request.form.get('user_input', '')
+#     ai_response = request.form.get('ai_response', '')
+#     clasa = request.form.get('clasa', '')
+#     fb = request.form.get('feedback', '')
 
-    conn = sqlite3.connect('feedback/feedback.db')
-    c = conn.cursor()
-    c.execute('INSERT INTO feedback (timestamp, clasa, user_input, ai_response, feedback) VALUES (?, ?, ?, ?, ?)',
-              (datetime.now().isoformat(), clasa, user_input, ai_response, fb))
-    conn.commit()
-    conn.close()
+#     conn = sqlite3.connect('feedback/feedback.db')
+#     c = conn.cursor()
+#     c.execute('INSERT INTO feedback (timestamp, clasa, user_input, ai_response, feedback) VALUES (?, ?, ?, ?, ?)',
+#               (datetime.now().isoformat(), clasa, user_input, ai_response, fb))
+#     conn.commit()
+#     conn.close()
 
-    return '', 204
+#     return '', 204
 
 # === Pornire aplicație ===
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()  # Create database tables
-    init_db()
+    # init_db() # Removed feedback db initialization
     app.run(debug=True)

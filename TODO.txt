@@ -3,5 +3,10 @@ Raspunsuri mai bune:
  - formatarea mai buna;
  - explicatii clare, inspirate din documentatie.
 
- Redistribuie codul in fisere mai mici
- 
+
+Ok, voi implementa modificarea 
+în funcția format_steps_and_paragraphs din app.py 
+pentru a formata liniile care încep cu ### ca tag-uri <h3>.
+
+
+Adauga mecanismul de feedback inapoi, avand grija la raspunsurile care genereaza text
