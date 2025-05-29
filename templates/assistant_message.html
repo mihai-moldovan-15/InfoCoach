@@ -12,10 +12,14 @@
 <script>
 function submitFeedback(button, feedback) {
     // Ascunde butoanele de feedback
-    button.style.display = 'none';
+    button.parentElement.style.display = 'none';
     
     // Afișează mesajul de mulțumire
     document.getElementById('feedback-message').textContent = 'Mulțumim pentru feedback!';
+    
+    const userInput = '{{ user_input|tojson|safe }}';
+    const aiResponse = '{{ output|tojson|safe }}';
+    const clasa = '{{ clasa }}';
     
     // Trimite feedback-ul
     fetch('/feedback', {
@@ -24,26 +28,29 @@ function submitFeedback(button, feedback) {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-            'user_input': '{{ user_input|tojson|safe }}',
-            'ai_response': '{{ output|tojson|safe }}',
-            'clasa': '{{ clasa }}',
-            'feedback': feedback
+            'user_input': userInput,
+            'ai_response': aiResponse,
+            'clasa': clasa,
+            'feedback': feedback,
+            'feedback_text': ''
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.error) {
             console.error('Error:', data.error);
+            alert('Eroare la salvarea feedback-ului. Te rugăm să încerci din nou.');
         }
     })
     .catch(error => {
         console.error('Error:', error);
+        alert('Eroare la salvarea feedback-ului. Te rugăm să încerci din nou.');
     });
 }
 </script>
 
 <style>
-.feedback-buttons {
+.feedback-form {
     margin-top: 10px;
 }
 
@@ -60,9 +67,9 @@ function submitFeedback(button, feedback) {
     background-color: #e0e0e0;
 }
 
-.feedback-thanks {
-    margin-top: 10px;
+#feedback-message {
     color: #666;
     font-style: italic;
+    margin-left: 10px;
 }
 </style> 

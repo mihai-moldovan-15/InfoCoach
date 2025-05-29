@@ -74,7 +74,8 @@ def init_db():
             clasa TEXT,
             user_input TEXT,
             ai_response TEXT,
-            feedback TEXT
+            feedback TEXT,
+            feedback_text TEXT
         )
     ''')
     conn.commit()
@@ -82,6 +83,79 @@ def init_db():
 
 # Initialize feedback database
 init_db()
+
+# === Funcție pentru gestionarea conversațiilor ===
+def get_active_conversation(user_id, clasa):
+    conn = sqlite3.connect('feedback/feedback.db')
+    c = conn.cursor()
+    
+    # Verifică dacă există o conversație activă
+    c.execute('''
+        SELECT id, message_count 
+        FROM conversations 
+        WHERE user_id = ? AND clasa = ? AND is_active = 1
+    ''', (user_id, clasa))
+    
+    conversation = c.fetchone()
+    
+    if conversation:
+        # Dacă conversația a atins limita, o închide
+        if conversation[1] >= 10:
+            c.execute('UPDATE conversations SET is_active = 0 WHERE id = ?', (conversation[0],))
+            conn.commit()
+            conn.close()
+            return None
+        return conversation[0]
+    
+    # Creează o nouă conversație
+    c.execute('''
+        INSERT INTO conversations (user_id, clasa, start_time, message_count)
+        VALUES (?, ?, ?, 0)
+    ''', (user_id, clasa, datetime.now().isoformat()))
+    
+    conn.commit()
+    conversation_id = c.lastrowid
+    conn.close()
+    
+    return conversation_id
+
+# === Funcție pentru salvarea mesajelor ===
+def save_message(conversation_id, user_input, ai_response):
+    conn = sqlite3.connect('feedback/feedback.db')
+    c = conn.cursor()
+    
+    # Salvează mesajul
+    c.execute('''
+        INSERT INTO messages (conversation_id, user_input, ai_response, timestamp)
+        VALUES (?, ?, ?, ?)
+    ''', (conversation_id, user_input, ai_response, datetime.now().isoformat()))
+    
+    # Incrementează contorul de mesaje
+    c.execute('''
+        UPDATE conversations 
+        SET message_count = message_count + 1 
+        WHERE id = ?
+    ''', (conversation_id,))
+    
+    conn.commit()
+    conn.close()
+
+# === Funcție pentru obținerea istoricului conversației ===
+def get_conversation_history(conversation_id):
+    conn = sqlite3.connect('feedback/feedback.db')
+    c = conn.cursor()
+    
+    c.execute('''
+        SELECT user_input, ai_response, timestamp
+        FROM messages
+        WHERE conversation_id = ?
+        ORDER BY timestamp ASC
+    ''', (conversation_id,))
+    
+    messages = c.fetchall()
+    conn.close()
+    
+    return messages
 
 # === Funcție pentru formatarea blocurilor de cod C++ ===
 def format_code_blocks(text):
@@ -257,7 +331,7 @@ def index():
                 if m.role == "assistant":
                     output = m.content[0].text.value
                     
-                    # === Filter out references like 【4:0†source】 ===
+                    # Filter out references like 【4:0†source】
                     output = re.sub(r'[【\[]\d+:\d+†[^\]】]+[】\]]', '', output)
                     
                     # Format the output for HTML display
@@ -266,9 +340,9 @@ def index():
 
                     # Render the assistant message fragment and return it
                     return render_template('assistant_message.html', 
-                                           output=formatted_output,
-                                           user_input=user_input, 
-                                           clasa=clasa)
+                                        output=formatted_output,
+                                        user_input=user_input, 
+                                        clasa=clasa)
 
         # If the run failed or no assistant message was found
         return "A apărut o problemă la generarea răspunsului asistentului.", 500
@@ -286,8 +360,9 @@ def feedback():
         ai_response = request.form.get('ai_response', '').strip()
         clasa = request.form.get('clasa', '').strip()
         fb = request.form.get('feedback', '').strip()
+        feedback_text = request.form.get('feedback_text', '').strip()
         
-        app.logger.info(f"Received feedback request - Clasa: {clasa}, Feedback: {fb}")
+        app.logger.info(f"Received feedback request - Clasa: {clasa}, Feedback: {fb}, Text: {feedback_text}")
         
         # Validate inputs
         if not user_input:
@@ -308,6 +383,7 @@ def feedback():
         # Nu mai escapăm HTML pentru răspunsul AI, îl salvăm așa cum este
         clasa = html.escape(clasa)
         fb = html.escape(fb)
+        feedback_text = html.escape(feedback_text)
         
         # Ensure feedback directory exists
         feedback_dir = os.path.join(os.path.dirname(__file__), 'feedback')
@@ -322,23 +398,41 @@ def feedback():
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
         
-        # Create table if it doesn't exist
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS feedback (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT,
-                clasa TEXT,
-                user_input TEXT,
-                ai_response TEXT,
-                feedback TEXT
-            )
-        ''')
+        try:
+            # Verifică dacă coloana feedback_text există
+            c.execute("PRAGMA table_info(feedback)")
+            columns = [column[1] for column in c.fetchall()]
+            app.logger.info(f"Existing columns: {columns}")
+            
+            # Dacă coloana nu există, o adaugă
+            if 'feedback_text' not in columns:
+                app.logger.info("Adding feedback_text column")
+                c.execute('ALTER TABLE feedback ADD COLUMN feedback_text TEXT')
+                conn.commit()
+                app.logger.info("Added feedback_text column to feedback table")
+        except sqlite3.OperationalError as e:
+            # Dacă tabela nu există, o creează cu toate coloanele
+            app.logger.info("Creating feedback table")
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT,
+                    clasa TEXT,
+                    user_input TEXT,
+                    ai_response TEXT,
+                    feedback TEXT,
+                    feedback_text TEXT
+                )
+            ''')
+            conn.commit()
+            app.logger.info("Created feedback table with all columns")
         
         # Insert feedback
+        app.logger.info("Inserting feedback")
         c.execute('''
-            INSERT INTO feedback (timestamp, clasa, user_input, ai_response, feedback)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (datetime.now().isoformat(), clasa, user_input, ai_response, fb))
+            INSERT INTO feedback (timestamp, clasa, user_input, ai_response, feedback, feedback_text)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (datetime.now().isoformat(), clasa, user_input, ai_response, fb, feedback_text))
         
         conn.commit()
         conn.close()
