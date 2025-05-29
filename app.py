@@ -558,44 +558,6 @@ def view_feedback():
                          current_clasa=clasa_filter,
                          current_feedback=feedback_filter)
 
-# === Ruta pentru creare admin ===
-@app.route('/create-admin', methods=['GET', 'POST'])
-def create_admin():
-    # Verifică dacă există deja un admin
-    admin_exists = User.query.filter_by(is_admin=True).first()
-    if admin_exists:
-        flash('Un cont de administrator există deja.', 'warning')
-        return redirect(url_for('login'))
-    
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        if not all([username, email, password]):
-            flash('Toate câmpurile sunt obligatorii.', 'danger')
-            return render_template('create_admin.html')
-        
-        # Verifică dacă username-ul sau email-ul există deja
-        if User.query.filter_by(username=username).first():
-            flash('Acest nume de utilizator există deja.', 'danger')
-            return render_template('create_admin.html')
-        
-        if User.query.filter_by(email=email).first():
-            flash('Acest email există deja.', 'danger')
-            return render_template('create_admin.html')
-        
-        # Creează utilizatorul admin
-        admin = User(username=username, email=email, is_admin=True)
-        admin.set_password(password)
-        db.session.add(admin)
-        db.session.commit()
-        
-        flash('Contul de administrator a fost creat cu succes!', 'success')
-        return redirect(url_for('login'))
-    
-    return render_template('create_admin.html')
-
 # === Pornire aplicație ===
 if __name__ == '__main__':
     with app.app_context():
