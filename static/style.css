@@ -42,6 +42,8 @@ body {
     flex-direction: column;
     gap: 24px;
     background: #f6f8fa;
+    width: 100%;
+    box-sizing: border-box;
 }
 .message {
     max-width: 80%;
@@ -51,6 +53,8 @@ body {
     font-size: 16px;
     line-height: 1.6;
     box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+    box-sizing: border-box;
+    word-wrap: break-word;
 }
 .message.user {
     align-self: flex-end;
@@ -64,6 +68,8 @@ body {
     color: #222;
     padding: 16px;
     margin-bottom: 16px;
+    width: 100%;
+    max-width: 100%;
 }
 .message.assistant b {
     display: block;
@@ -74,6 +80,18 @@ body {
 .message-content {
     line-height: 1.6;
     margin-bottom: 4px;
+}
+.message.assistant pre {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.message.assistant code {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }
 .chat-input-area {
     padding: 18px 24px 18px 24px;

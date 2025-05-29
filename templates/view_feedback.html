@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Vizualizare Feedback{% endblock %}
+
+{% block extra_css %}
+<!-- highlight.js pentru colorare sintaxă -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<style>
+    .feedback-list {
+        margin-top: 2rem;
+    }
+    
+    .feedback-entry {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .feedback-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .timestamp {
+        color: #666;
+        font-size: 0.9em;
+    }
+    
+    .clasa {
+        background: #e6f0fa;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+    
+    .feedback-type {
+        font-weight: bold;
+        color: #0074d9;
+    }
+    
+    .feedback-content {
+        display: grid;
+        gap: 1.5rem;
+    }
+    
+    .user-input, .ai-response {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 6px;
+    }
+    
+    .user-input h3, .ai-response h3 {
+        color: #333;
+        margin-bottom: 0.5rem;
+        font-size: 1.1em;
+    }
+    
+    .response-content {
+        line-height: 1.6;
+    }
+    
+    .response-content pre {
+        background: #f8f8f8;
+        padding: 1rem;
+        border-radius: 4px;
+        overflow-x: auto;
+        border: 1px solid #e5e7eb;
+        margin: 1rem 0;
+    }
+    
+    .response-content code {
+        font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+        font-size: 14px;
+    }
+    
+    .response-content p {
+        margin: 0.5rem 0;
+    }
+    
+    .response-content ol {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+    }
+    
+    .response-content li {
+        margin: 0.5rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Feedback Utilizatori</h1>
+    
+    {% if feedback_entries %}
+        <div class="feedback-list">
+            {% for entry in feedback_entries %}
+            <div class="feedback-entry">
+                <div class="feedback-header">
+                    <span class="timestamp">{{ entry.timestamp }}</span>
+                    <span class="clasa">Clasa: {{ entry.clasa }}</span>
+                    <span class="feedback-type">Feedback: {{ entry.feedback }}</span>
+                </div>
+                
+                <div class="feedback-content">
+                    <div class="user-input">
+                        <h3>Întrebare utilizator:</h3>
+                        <p>{{ entry.user_input }}</p>
+                    </div>
+                    
+                    <div class="ai-response">
+                        <h3>Răspuns InfoCoach:</h3>
+                        <div class="response-content">{{ entry.ai_response|safe }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>Nu există înregistrări de feedback.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', (event) => {
+    // Highlight all code blocks
+    document.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightBlock(block);
+    });
+});
+</script>
+{% endblock %} 

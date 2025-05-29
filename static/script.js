@@ -35,10 +35,16 @@ function addMessage(content, isUser = false) {
     if (isUser) {
         messageDiv.innerHTML = `<b>Tu:</b><br>${content}`;
     } else {
-        // Create the full assistant message structure without feedback
+        // Create the full assistant message structure with feedback form
         messageDiv.innerHTML = `
             <b>InfoCoach:</b>
             <div class="message-content">${content}</div>
+            <div class="feedback-form">
+                <span>Acest răspuns a fost util?</span>
+                <button onclick="submitFeedback(this, 'da')" class="feedback-btn">Da</button>
+                <button onclick="submitFeedback(this, 'nu')" class="feedback-btn">Nu</button>
+                <span id="feedback-message"></span>
+            </div>
         `;
     }
 
@@ -113,9 +119,83 @@ function submitForm(event) {
     return false;
 }
 
-// Feedback AJAX - Removed
+// Feedback handling
+function submitFeedback(button, feedback) {
+    const messageDiv = button.closest('.message.assistant');
+    const messageContent = messageDiv.querySelector('.message-content').innerHTML;
+    const feedbackMessage = messageDiv.querySelector('#feedback-message');
+    
+    // Get the user input from the previous message
+    const userMessage = messageDiv.previousElementSibling;
+    let userInput = '';
+    if (userMessage && userMessage.classList.contains('user')) {
+        // Extract text after "Tu:" and any <br> tags
+        const content = userMessage.innerHTML;
+        const match = content.match(/<b>Tu:<\/b><br>(.*)/);
+        if (match) {
+            userInput = match[1].trim();
+        }
+    }
+    
+    // Get the class from the select element
+    const clasa = document.getElementById('clasa').value;
+    
+    // Disable feedback buttons
+    const buttons = messageDiv.querySelectorAll('.feedback-btn');
+    buttons.forEach(btn => btn.disabled = true);
+    
+    // Prepare the data
+    const formData = new URLSearchParams();
+    formData.append('user_input', userInput);
+    formData.append('ai_response', messageContent);
+    formData.append('clasa', clasa);
+    formData.append('feedback', feedback);
+    
+    // Log the data being sent
+    console.log('Sending feedback data:', {
+        userInput,
+        clasa,
+        feedback,
+        messageContentLength: messageContent.length
+    });
+    
+    // Send feedback to server
+    fetch('/feedback', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            console.error('Server error:', data.error);
+            feedbackMessage.textContent = 'Eroare la salvarea feedback-ului: ' + data.error;
+            feedbackMessage.style.color = '#dc3545';
+            // Re-enable buttons on error
+            buttons.forEach(btn => btn.disabled = false);
+        } else {
+            feedbackMessage.textContent = 'Mulțumim pentru feedback!';
+            feedbackMessage.style.color = '#28a745';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        feedbackMessage.textContent = 'Eroare la salvarea feedback-ului. Te rugăm să încerci din nou.';
+        feedbackMessage.style.color = '#dc3545';
+        // Re-enable buttons on error
+        buttons.forEach(btn => btn.disabled = false);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-     // Initial scroll to bottom
+    // Initial scroll to bottom
     scrollToBottom();
     // Initial highlight in case there's content on page load (e.g., previous messages)
     // This is less crucial now as highlighting is done per message addition

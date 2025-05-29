@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, flash, redirect, url_for
+from flask import Flask, render_template, request, flash, redirect, url_for, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 import os
-# import sqlite3 # Removed as feedback database is removed
+import sqlite3
 from dotenv import load_dotenv
 from openai import OpenAI
 from datetime import datetime
@@ -62,23 +62,26 @@ for clasa in vector_stores:
         top_p=0.8
     )
 
-# === Inițializare baza de date SQLite (Feedback) - Removed ===
-# def init_db():
-#     os.makedirs('feedback', exist_ok=True)
-#     conn = sqlite3.connect('feedback/feedback.db')
-#     c = conn.cursor()
-#     c.execute('''
-#         CREATE TABLE IF NOT EXISTS feedback (
-#             id INTEGER PRIMARY KEY AUTOINCREMENT,
-#             timestamp TEXT,
-#             clasa TEXT,
-#             user_input TEXT,
-#             ai_response TEXT,
-#             feedback TEXT
-#         )
-#     ''')
-#     conn.commit()
-#     conn.close()
+# === Inițializare baza de date SQLite (Feedback) ===
+def init_db():
+    os.makedirs('feedback', exist_ok=True)
+    conn = sqlite3.connect('feedback/feedback.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            clasa TEXT,
+            user_input TEXT,
+            ai_response TEXT,
+            feedback TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# Initialize feedback database
+init_db()
 
 # === Funcție pentru formatarea blocurilor de cod C++ ===
 def format_code_blocks(text):
@@ -144,6 +147,38 @@ def format_steps_and_paragraphs(text):
     # Alătură toate părțile (cod și non-cod) înapoi
     return ''.join(formatted)
 
+# === Funcție pentru formatarea cuvintelor între backticks ===
+def format_inline_code(text):
+    # Verifică dacă textul conține deja HTML formatat
+    if '<pre><code class="cpp">' in text:
+        return text
+        
+    def replacer(match):
+        code = html.escape(match.group(1))
+        return f'<span style="background-color: #f0f0f0; padding: 2px 4px; border-radius: 3px; font-family: monospace; color: #333;">{code}</span>'
+    
+    # Găsește toate aparițiile de text între backticks, inclusiv cele cu caractere speciale
+    pattern = r'`([^`]+?)`'
+    
+    # Împarte textul în părți pentru a evita formatarea în blocurile de cod
+    parts = re.split(r'(<pre><code class="cpp">[\s\S]*?<\/code><\/pre>)', text)
+    formatted = []
+    
+    for part in parts:
+        if part.startswith('<pre><code class="cpp">'):
+            # Nu modifica blocurile de cod
+            formatted.append(part)
+        else:
+            # Aplică formatarea pentru backticks în restul textului
+            # Înlocuiește temporar caracterele speciale pentru a evita conflictele
+            temp_part = part.replace('#', '___HASH___')
+            temp_part = re.sub(pattern, replacer, temp_part)
+            # Restaurează caracterele speciale
+            temp_part = temp_part.replace('___HASH___', '#')
+            formatted.append(temp_part)
+    
+    return ''.join(formatted)
+
 # === Ruta pentru login ===
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -199,6 +234,7 @@ def index():
         user_input = request.form.get('user_input', '')
         clasa = request.form.get('clasa', '9')
 
+        # Nu mai escapăm HTML pentru input-ul utilizatorului
         prompt_content = (
             f"{user_input}\n"
             "Te rog să folosești cât mai mult informațiile din resursele disponibile."
@@ -240,27 +276,123 @@ def index():
     # For GET requests, render the full index page with initial (or last) data
     return render_template('index.html', user_input=user_input, output=output, clasa=clasa)
 
-# === Ruta pentru salvare feedback === # Removed
-# @app.route('/feedback', methods=['POST'])
-# @login_required
-# def feedback():
-#     user_input = request.form.get('user_input', '')
-#     ai_response = request.form.get('ai_response', '')
-#     clasa = request.form.get('clasa', '')
-#     fb = request.form.get('feedback', '')
+# === Ruta pentru salvare feedback ===
+@app.route('/feedback', methods=['POST'])
+@login_required
+def feedback():
+    try:
+        # Get and validate required fields
+        user_input = request.form.get('user_input', '').strip()
+        ai_response = request.form.get('ai_response', '').strip()
+        clasa = request.form.get('clasa', '').strip()
+        fb = request.form.get('feedback', '').strip()
+        
+        app.logger.info(f"Received feedback request - Clasa: {clasa}, Feedback: {fb}")
+        
+        # Validate inputs
+        if not user_input:
+            app.logger.warning("Missing user input")
+            return jsonify({'error': 'Lipsește input-ul utilizatorului'}), 400
+        if not ai_response:
+            app.logger.warning("Missing AI response")
+            return jsonify({'error': 'Lipsește răspunsul asistentului'}), 400
+        if not clasa:
+            app.logger.warning("Missing class")
+            return jsonify({'error': 'Lipsește clasa'}), 400
+        if not fb:
+            app.logger.warning("Missing feedback")
+            return jsonify({'error': 'Lipsește feedback-ul'}), 400
+            
+        # Sanitize inputs
+        user_input = html.escape(user_input)
+        # Nu mai escapăm HTML pentru răspunsul AI, îl salvăm așa cum este
+        clasa = html.escape(clasa)
+        fb = html.escape(fb)
+        
+        # Ensure feedback directory exists
+        feedback_dir = os.path.join(os.path.dirname(__file__), 'feedback')
+        os.makedirs(feedback_dir, exist_ok=True)
+        app.logger.info(f"Feedback directory: {feedback_dir}")
+        
+        # Database path
+        db_path = os.path.join(feedback_dir, 'feedback.db')
+        app.logger.info(f"Database path: {db_path}")
+        
+        # Save to database
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        
+        # Create table if it doesn't exist
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                clasa TEXT,
+                user_input TEXT,
+                ai_response TEXT,
+                feedback TEXT
+            )
+        ''')
+        
+        # Insert feedback
+        c.execute('''
+            INSERT INTO feedback (timestamp, clasa, user_input, ai_response, feedback)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (datetime.now().isoformat(), clasa, user_input, ai_response, fb))
+        
+        conn.commit()
+        conn.close()
+        
+        app.logger.info("Feedback saved successfully")
+        return jsonify({'message': 'Feedback salvat cu succes!'})
+        
+    except sqlite3.Error as e:
+        app.logger.error(f"Database error: {str(e)}")
+        return jsonify({'error': f'Eroare la salvarea în baza de date: {str(e)}'}), 500
+    except Exception as e:
+        app.logger.error(f"Unexpected error: {str(e)}")
+        return jsonify({'error': f'A apărut o eroare neașteptată: {str(e)}'}), 500
 
-#     conn = sqlite3.connect('feedback/feedback.db')
-#     c = conn.cursor()
-#     c.execute('INSERT INTO feedback (timestamp, clasa, user_input, ai_response, feedback) VALUES (?, ?, ?, ?, ?)',
-#               (datetime.now().isoformat(), clasa, user_input, ai_response, fb))
-#     conn.commit()
-#     conn.close()
-
-#     return '', 204
+# === Ruta pentru vizualizare feedback ===
+@app.route('/view-feedback')
+def view_feedback():
+    # Conectare la baza de date
+    conn = sqlite3.connect('feedback/feedback.db')
+    c = conn.cursor()
+    
+    # Obține toate înregistrările de feedback, ordonate cronologic invers
+    c.execute('SELECT * FROM feedback ORDER BY timestamp DESC')
+    feedback_entries = c.fetchall()
+    
+    # Închide conexiunea
+    conn.close()
+    
+    # Convertește rezultatele în format ușor de folosit în template
+    entries = []
+    for entry in feedback_entries:
+        # Verifică dacă răspunsul conține deja HTML
+        if '<pre><code class="cpp">' in entry[4]:
+            # Dacă conține deja HTML, îl folosim direct
+            formatted_response = entry[4]
+        else:
+            # Dacă nu conține HTML, aplicăm formatarea
+            formatted_response = format_code_blocks(entry[4])
+            formatted_response = format_steps_and_paragraphs(formatted_response)
+            # Aplică formatarea pentru cuvintele între backticks
+            formatted_response = format_inline_code(formatted_response)
+        
+        entries.append({
+            'timestamp': entry[1],
+            'clasa': entry[2],
+            'user_input': entry[3],
+            'ai_response': formatted_response,
+            'feedback': entry[5]
+        })
+    
+    return render_template('view_feedback.html', feedback_entries=entries)
 
 # === Pornire aplicație ===
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()  # Create database tables
-    # init_db() # Removed feedback db initialization
     app.run(debug=True)

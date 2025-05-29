@@ -1,4 +1,68 @@
 <div class="message assistant">
     <b>InfoCoach:</b>
     <div class="message-content">{{ output|safe }}</div>
-</div> 
+    <div class="feedback-form">
+        <span>Acest răspuns a fost util?</span>
+        <button onclick="submitFeedback(this, 'da')" class="feedback-btn">Da</button>
+        <button onclick="submitFeedback(this, 'nu')" class="feedback-btn">Nu</button>
+        <span id="feedback-message"></span>
+    </div>
+</div>
+
+<script>
+function submitFeedback(button, feedback) {
+    // Ascunde butoanele de feedback
+    button.style.display = 'none';
+    
+    // Afișează mesajul de mulțumire
+    document.getElementById('feedback-message').textContent = 'Mulțumim pentru feedback!';
+    
+    // Trimite feedback-ul
+    fetch('/feedback', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            'user_input': '{{ user_input|tojson|safe }}',
+            'ai_response': '{{ output|tojson|safe }}',
+            'clasa': '{{ clasa }}',
+            'feedback': feedback
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Error:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+</script>
+
+<style>
+.feedback-buttons {
+    margin-top: 10px;
+}
+
+.feedback-btn {
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    padding: 5px 15px;
+    margin-right: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.feedback-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.feedback-thanks {
+    margin-top: 10px;
+    color: #666;
+    font-style: italic;
+}
+</style> 
