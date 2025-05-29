@@ -9,30 +9,30 @@ class LoginForm(FlaskForm):
     submit = SubmitField('Autentificare')
 
 class RegistrationForm(FlaskForm):
-    username = StringField('Username', validators=[
-        DataRequired(),
-        Length(min=3, max=20, message='Username must be between 3 and 20 characters')
+    username = StringField('Nume utilizator', validators=[
+        DataRequired(message='Acest câmp este obligatoriu'),
+        Length(min=3, max=20, message='Numele de utilizator trebuie să aibă între 3 și 20 de caractere')
     ])
     email = StringField('Email', validators=[
-        DataRequired(),
-        Email(message='Please enter a valid email address')
+        DataRequired(message='Acest câmp este obligatoriu'),
+        Email(message='Introdu o adresă de email validă')
     ])
-    password = PasswordField('Password', validators=[
-        DataRequired(),
-        Length(min=6, message='Password must be at least 6 characters long')
+    password = PasswordField('Parolă', validators=[
+        DataRequired(message='Acest câmp este obligatoriu'),
+        Length(min=6, message='Parola trebuie să aibă cel puțin 6 caractere')
     ])
-    confirm_password = PasswordField('Confirm Password', validators=[
-        DataRequired(),
-        EqualTo('password', message='Passwords must match')
+    password2 = PasswordField('Confirmă parola', validators=[
+        DataRequired(message='Acest câmp este obligatoriu'),
+        EqualTo('password', message='Parolele nu coincid')
     ])
-    submit = SubmitField('Register')
+    submit = SubmitField('Înregistrare')
 
     def validate_username(self, username):
         user = User.query.filter_by(username=username.data).first()
         if user:
-            raise ValidationError('Username already taken. Please choose a different one.')
+            raise ValidationError('Acest nume de utilizator este deja folosit. Te rugăm să alegi altul.')
 
     def validate_email(self, email):
         user = User.query.filter_by(email=email.data).first()
         if user:
-            raise ValidationError('Email already registered. Please use a different one.') 
+            raise ValidationError('Această adresă de email este deja înregistrată. Te rugăm să folosești alta.') 

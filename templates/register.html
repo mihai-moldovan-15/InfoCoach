@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 
+{% block title %}Înregistrare{% endblock %}
+
 {% block content %}
 <div class="auth-container">
-    <h2>Register</h2>
+    <h2>Înregistrare</h2>
     <form method="POST" action="{{ url_for('register') }}">
         {{ form.hidden_tag() }}
         <div class="form-group">
@@ -27,9 +29,9 @@
             {% endfor %}
         </div>
         <div class="form-group">
-            {{ form.confirm_password.label }}
-            {{ form.confirm_password(class="form-control") }}
-            {% for error in form.confirm_password.errors %}
+            {{ form.password2.label }}
+            {{ form.password2(class="form-control") }}
+            {% for error in form.password2.errors %}
             <span class="error">{{ error }}</span>
             {% endfor %}
         </div>
@@ -38,7 +40,7 @@
         </div>
     </form>
     <p class="auth-link">
-        Already have an account? <a href="{{ url_for('login') }}">Log in here</a>
+        Ai deja un cont? <a href="{{ url_for('login') }}">Autentifică-te aici</a>
     </p>
 </div>
 {% endblock %} 
