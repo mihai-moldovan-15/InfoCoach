@@ -350,6 +350,56 @@ def index():
     # For GET requests, render the full index page with initial (or last) data
     return render_template('index.html', user_input=user_input, output=output, clasa=clasa)
 
+# === Ruta pentru API chat ===
+@app.route('/api/chat', methods=['POST'])
+@login_required
+def chat_api():
+    user_input = request.form.get('user_input', '')
+    clasa = request.form.get('clasa', '9')
+
+    if not user_input:
+        return jsonify({'error': 'Lipsește input-ul utilizatorului'}), 400
+
+    # Nu mai escapăm HTML pentru input-ul utilizatorului
+    prompt_content = (
+        f"{user_input}\n"
+        "Te rog să folosești cât mai mult informațiile din resursele disponibile."
+    )
+
+    assistant = assistants[clasa]
+
+    thread = client.beta.threads.create()
+    client.beta.threads.messages.create(thread_id=thread.id, role="user", content=prompt_content)
+
+    run = client.beta.threads.runs.create(thread_id=thread.id, assistant_id=assistant.id)
+
+    while run.status not in ["completed", "failed"]:
+        time.sleep(1)
+        run = client.beta.threads.runs.retrieve(run_id=run.id, thread_id=thread.id)
+
+    if run.status == "completed":
+        messages = client.beta.threads.messages.list(thread_id=thread.id)
+        for m in reversed(messages.data):
+            if m.role == "assistant":
+                output = m.content[0].text.value
+                
+                # Filter out references like 【4:0†source】
+                output = re.sub(r'[【\[]\d+:\d+†[^\]】]+[】\]]', '', output)
+                
+                # Format the output for HTML display
+                formatted_output = format_code_blocks(output)
+                formatted_output = format_steps_and_paragraphs(formatted_output)
+
+                return jsonify({
+                    'success': True,
+                    'response': formatted_output
+                })
+
+    return jsonify({
+        'success': False,
+        'error': 'A apărut o problemă la generarea răspunsului asistentului.'
+    }), 500
+
 # === Ruta pentru salvare feedback ===
 @app.route('/feedback', methods=['POST'])
 @login_required
@@ -449,13 +499,32 @@ def feedback():
 
 # === Ruta pentru vizualizare feedback ===
 @app.route('/view-feedback')
+@login_required
 def view_feedback():
+    # Obține parametrii de filtrare din query string
+    clasa_filter = request.args.get('clasa', '')
+    feedback_filter = request.args.get('feedback', '')
+    
     # Conectare la baza de date
     conn = sqlite3.connect('feedback/feedback.db')
     c = conn.cursor()
     
-    # Obține toate înregistrările de feedback, ordonate cronologic invers
-    c.execute('SELECT * FROM feedback ORDER BY timestamp DESC')
+    # Construiește query-ul SQL cu filtre
+    query = 'SELECT * FROM feedback WHERE 1=1'
+    params = []
+    
+    if clasa_filter:
+        query += ' AND clasa = ?'
+        params.append(clasa_filter)
+    
+    if feedback_filter:
+        query += ' AND feedback = ?'
+        params.append(feedback_filter)
+    
+    query += ' ORDER BY timestamp DESC'
+    
+    # Execută query-ul cu parametrii
+    c.execute(query, params)
     feedback_entries = c.fetchall()
     
     # Închide conexiunea
@@ -480,10 +549,52 @@ def view_feedback():
             'clasa': entry[2],
             'user_input': entry[3],
             'ai_response': formatted_response,
-            'feedback': entry[5]
+            'feedback': entry[5],
+            'feedback_text': entry[6] if len(entry) > 6 else ''
         })
     
-    return render_template('view_feedback.html', feedback_entries=entries)
+    return render_template('view_feedback.html', 
+                         feedback_entries=entries,
+                         current_clasa=clasa_filter,
+                         current_feedback=feedback_filter)
+
+# === Ruta pentru creare admin ===
+@app.route('/create-admin', methods=['GET', 'POST'])
+def create_admin():
+    # Verifică dacă există deja un admin
+    admin_exists = User.query.filter_by(is_admin=True).first()
+    if admin_exists:
+        flash('Un cont de administrator există deja.', 'warning')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if not all([username, email, password]):
+            flash('Toate câmpurile sunt obligatorii.', 'danger')
+            return render_template('create_admin.html')
+        
+        # Verifică dacă username-ul sau email-ul există deja
+        if User.query.filter_by(username=username).first():
+            flash('Acest nume de utilizator există deja.', 'danger')
+            return render_template('create_admin.html')
+        
+        if User.query.filter_by(email=email).first():
+            flash('Acest email există deja.', 'danger')
+            return render_template('create_admin.html')
+        
+        # Creează utilizatorul admin
+        admin = User(username=username, email=email, is_admin=True)
+        admin.set_password(password)
+        db.session.add(admin)
+        db.session.commit()
+        
+        flash('Contul de administrator a fost creat cu succes!', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('create_admin.html')
 
 # === Pornire aplicație ===
 if __name__ == '__main__':

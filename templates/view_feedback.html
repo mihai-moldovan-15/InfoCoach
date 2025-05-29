@@ -92,40 +92,118 @@
     .response-content li {
         margin: 0.5rem 0;
     }
+
+    .filters {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 5px;
+        border: 1px solid #dee2e6;
+    }
+
+    .card {
+        border: 1px solid #dee2e6;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .card-header {
+        background-color: #f8f9fa;
+    }
+
+    .badge {
+        font-size: 0.9em;
+        padding: 0.5em 1em;
+    }
+
+    .card-title {
+        color: #495057;
+        font-size: 1.1em;
+        margin-bottom: 0.5em;
+    }
+
+    .card-text {
+        color: #212529;
+    }
+
+    pre {
+        background-color: #f8f9fa;
+        padding: 1em;
+        border-radius: 4px;
+        margin: 0.5em 0;
+    }
+
+    code {
+        font-family: 'Consolas', 'Monaco', monospace;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Feedback Utilizatori</h1>
+<div class="container mt-4">
+    <h2>Vizualizare Feedback</h2>
     
-    {% if feedback_entries %}
-        <div class="feedback-list">
-            {% for entry in feedback_entries %}
-            <div class="feedback-entry">
-                <div class="feedback-header">
-                    <span class="timestamp">{{ entry.timestamp }}</span>
-                    <span class="clasa">Clasa: {{ entry.clasa }}</span>
-                    <span class="feedback-type">Feedback: {{ entry.feedback }}</span>
-                </div>
-                
-                <div class="feedback-content">
-                    <div class="user-input">
-                        <h3>Întrebare utilizator:</h3>
-                        <p>{{ entry.user_input }}</p>
-                    </div>
-                    
-                    <div class="ai-response">
-                        <h3>Răspuns InfoCoach:</h3>
-                        <div class="response-content">{{ entry.ai_response|safe }}</div>
-                    </div>
-                </div>
+    <!-- Filtre -->
+    <div class="filters mb-4">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label for="clasa" class="form-label">Filtrare după clasă:</label>
+                <select name="clasa" id="clasa" class="form-select">
+                    <option value="">Toate clasele</option>
+                    <option value="9" {% if current_clasa == '9' %}selected{% endif %}>Clasa a 9-a</option>
+                    <option value="10" {% if current_clasa == '10' %}selected{% endif %}>Clasa a 10-a</option>
+                    <option value="11-12" {% if current_clasa == '11-12' %}selected{% endif %}>Clasa a 11-a / a 12-a</option>
+                </select>
             </div>
+            <div class="col-md-4">
+                <label for="feedback" class="form-label">Filtrare după feedback:</label>
+                <select name="feedback" id="feedback" class="form-select">
+                    <option value="">Toate răspunsurile</option>
+                    <option value="da" {% if current_feedback == 'da' %}selected{% endif %}>De ajutor</option>
+                    <option value="nu" {% if current_feedback == 'nu' %}selected{% endif %}>Nu a fost de ajutor</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Filtrează</button>
+                <a href="{{ url_for('view_feedback') }}" class="btn btn-secondary ms-2">Resetează</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Lista de feedback -->
+    <div class="feedback-list">
+        {% if feedback_entries %}
+            {% for entry in feedback_entries %}
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Clasa:</strong> {{ entry.clasa }}
+                            <strong class="ms-3">Data:</strong> {{ entry.timestamp }}
+                        </div>
+                        <div>
+                            <span class="badge {% if entry.feedback == 'da' %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ 'De ajutor' if entry.feedback == 'da' else 'Nu a fost de ajutor' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">Întrebare:</h5>
+                        <p class="card-text">{{ entry.user_input }}</p>
+                        
+                        <h5 class="card-title mt-3">Răspuns:</h5>
+                        <div class="card-text">{{ entry.ai_response|safe }}</div>
+                        
+                        {% if entry.feedback_text %}
+                            <h5 class="card-title mt-3">Comentariu:</h5>
+                            <p class="card-text">{{ entry.feedback_text }}</p>
+                        {% endif %}
+                    </div>
+                </div>
             {% endfor %}
-        </div>
-    {% else %}
-        <p>Nu există înregistrări de feedback.</p>
-    {% endif %}
+        {% else %}
+            <div class="alert alert-info">
+                Nu există înregistrări de feedback care să corespundă filtrelor selectate.
+            </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
 
