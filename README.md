@@ -1,95 +1,134 @@
-# AI Chatbot with Feedback System
+# InfoCoach - Asistent AI pentru Informatică
 
-A Flask-based web application that provides an interactive chatbot interface with feedback collection capabilities. The application supports multiple AI models and stores user feedback in a SQLite database.
+![Python](https://img.shields.io/badge/Python-3.8+-blue)
+![Flask](https://img.shields.io/badge/Flask-web--framework-lightgrey)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-## Features
+O aplicație web bazată pe Flask care oferă un asistent AI specializat pentru învățarea informaticii, adaptat pentru clasele 9-12. Aplicația folosește OpenAI GPT-4 pentru a oferi răspunsuri personalizate și interactive, cu suport pentru C++ și salvarea conversațiilor.
 
-- Interactive chat interface
-- Support for multiple AI models (OpenAI, Anthropic, Google)
-- Feedback collection system
-- SQLite database for storing feedback
-- Environment variable configuration
-- Modern and responsive UI
+---
 
-## Prerequisites
+## ⚙️ Funcționalități Principale
 
-- Python 3.8 or higher
-- pip (Python package installer)
-- SQLite3
+- 🤖 Asistent AI specializat pentru informatică  
+- 📚 Conținut adaptat pentru clasele 9-12  
+- 💬 Interfață de chat interactivă, în stil ChatGPT  
+- 🧠 Istoric conversații pentru fiecare utilizator  
+- ✍️ Rezumare automată a fiecărei conversații  
+- 📝 Sistem de feedback pentru îmbunătățirea răspunsurilor  
+- 🔒 Sistem de autentificare și înregistrare  
+- 📊 Vizualizare și filtrare feedback  
+- 💻 Suport pentru cod C++ cu formatare și syntax highlighting  
 
-## Installation
+---
 
-1. Clone the repository:
+## 🖥️ Cerințe Sistem
+
+- Python 3.8 sau mai nou  
+- pip (Python package installer)  
+- SQLite3  
+- Cont OpenAI cu acces la API GPT-4  
+
+---
+
+## 🚀 Instalare
+
+1. Clonează repository-ul:
 ```bash
-git clone <repository-url>
-cd <repository-name>
+git clone https://github.com/<utilizator>/InfoCoach.git
+cd InfoCoach
 ```
 
-2. Create and activate a virtual environment:
+2. Creează și activează un mediu virtual:
 ```bash
 python -m venv .venv
-# On Windows
+# Windows
 .venv\Scripts\activate
-# On Unix or MacOS
+# Unix/MacOS
 source .venv/bin/activate
 ```
 
-3. Install the required dependencies:
+3. Instalează dependențele:
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Create a `.env` file in the root directory with your API keys:
+4. Creează un fișier `.env` cu variabilele de configurare:
 ```
 OPENAI_API_KEY=your_openai_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
-GOOGLE_API_KEY=your_google_api_key
+SECRET_KEY=your_secret_key
 ```
 
-## Project Structure
+---
+
+## 🗂️ Structura Proiectului
 
 ```
 .
-├── app.py              # Main Flask application
-├── requirements.txt    # Python dependencies
-├── feedback/          # Feedback database directory
-├── resources/         # Static resources
-└── templates/         # HTML templates
+├── app.py              # Aplicația principală Flask
+├── models.py           # Modelele bazei de date (utilizatori, feedback, conversații)
+├── forms.py            # Formulare web (login, register, feedback)
+├── chat/               # Logica pentru gestionarea conversațiilor
+├── feedback/           # Gestionarea feedback-ului
+├── static/             # Fișiere CSS și JavaScript
+├── templates/          # Pagini HTML (chat, login, dashboard etc.)
+├── requirements.txt    # Lista cu dependențe Python
+└── resources/          # Resurse educaționale suplimentare
 ```
 
-## Running the Application
+---
 
-1. Make sure your virtual environment is activated
-2. Run the Flask application:
+## ▶️ Rulare Locală
+
+1. Asigură-te că mediul virtual este activat  
+2. Rulează aplicația Flask:
 ```bash
 python app.py
 ```
-3. Open your web browser and navigate to `http://localhost:5000`
+3. Deschide browser-ul și accesează `http://localhost:5000`
 
-## Usage
+---
 
-1. Select your preferred AI model from the dropdown menu
-2. Type your message in the chat input field
-3. Press Enter or click the send button to get a response
-4. Provide feedback on the responses using the feedback buttons
-5. View feedback statistics in the feedback section
+## 🧑‍🏫 Utilizare
 
-## Database
+1. Creează un cont nou sau autentifică-te  
+2. Selectează clasa (9-12)  
+3. Scrie întrebările tale despre informatică (teorie sau cod)  
+4. Primește răspunsuri personalizate cu explicații detaliate  
+5. Oferă feedback pentru a îmbunătăți calitatea răspunsurilor  
+6. Accesează istoricul conversațiilor și vezi rezumate rapide  
 
-The application uses SQLite to store feedback data. The database file is automatically created in the `feedback` directory when you first run the application.
+---
 
-## Contributing
+## 🔐 Caracteristici Tehnice
 
-1. Fork the repository
-2. Create a new branch for your feature
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+- **Autentificare securizată** (hashing parole, CSRF protection)  
+- **Bază de date relațională** cu SQLite + SQLAlchemy  
+- **Interfață modernă** și responsive  
+- **Persistență conversații** și generare de rezumate cu AI  
+- **Highlight cod C++** pentru răspunsuri tehnice  
 
-## License
+---
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 🤝 Contribuție
 
-## Support
+1. Fork acest repository  
+2. Creează un branch nou (`git checkout -b feature-nou`)  
+3. Commit modificările tale (`git commit -am 'Adaug funcționalitate X'`)  
+4. Push la branch (`git push origin feature-nou`)  
+5. Creează un Pull Request 🙌  
 
-For support, please open an issue in the repository or contact the maintainers. 
+---
+
+## 📄 Licență
+
+Acest proiect este licențiat sub [MIT License](LICENSE).
+
+---
+
+## 📬 Suport
+
+Pentru suport sau întrebări:
+
+- Deschide un [issue pe GitHub](https://github.com/<utilizator>/InfoCoach/issues)  
+- Trimite un email la: `mihai.moldovan152007 [at] gmail [dot] com`  
